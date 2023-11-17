@@ -1,0 +1,8 @@
+.vscode
+*.pyc
+*.csv
+*.xlsx
+*.db
+data/
+select.sql
+*.env
