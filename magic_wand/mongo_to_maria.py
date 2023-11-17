@@ -15,6 +15,9 @@ def parse_match(match_data):
       new_data[c] = [data[c]]
   return pd.DataFrame(new_data)
 
+# Definindo todas as colunas que serão utilizadas para a pesquisa, além de coletar 
+# essas mesmas colunas do servidor mongodb e copia-las em um servidor mariadb reduzindo 
+# as informações e facilitando a análise
 def parse_player(player_data):
   
   columns = [ "match_id",
@@ -73,7 +76,9 @@ def parse_player(player_data):
             "game_mode",
             "rank_tier" ]
   
+  # Coletando cada uma das colunas selecionadas das partidas que estão no banco
   df = pd.DataFrame({c:[player_data[c]] for c in player_data if c in columns})
+  # Corrigindo o formato de tempo das colunas selecionadas
   df["dt_match"] = pd.to_datetime(df["start_time"], unit="s")
   
   #Orgenando alfabéticamente 
@@ -91,6 +96,7 @@ def get_players(match_data):
   
   return pd.concat(dfs)
 
+# Criando a conexão com o banco de dados MariaDB
 def open_connection_mariadb():
    ip = os.getenv("MARIADB_IP")
    port = os.getenv("MARIADB_PORT")
@@ -102,11 +108,12 @@ def open_connection_mariadb():
    con = sqlalchemy.create_engine( f"mysql+pymysql://{user}:{pswd}@{ip}/{dbname}" )
    return con
 
+# Insere cada uma das partidas no banco MariaDB
 def insert_players(data, con):
   data.to_sql("tb_match_player", con, if_exists='append', index=False)
   return True
 
-
+# Coleta as partidas que ainda não estão no banco MariaDB mas estão no MongoDB
 def get_match_list(con, db_collection):
   query = "SELECT DISTINCT match_id AS id_list FROM tb_match_player"
   match_ids_maria = pd.read_sql_query(query, con)["id_list"].tolist()
@@ -120,14 +127,17 @@ def main():
   #Carrega o dotenv
   dotenv.load_dotenv(dotenv.find_dotenv())
 
+  # Carregando o acesso do banco MongoDB
   mongo_client = MongoClient(os.getenv("MONGODB_IP"), os.getenv("MONGODB_PORT"))
   mongo_database = mongo_client['dota_raw']
   details_collection = mongo_database['pro_match_details']
 
   con_maria = open_connection_mariadb()
 
+  # Indica para onde as informações devem ser salvas no MariaDB
   cursor = get_match_list(con_maria, details_collection)
 
+  # Insere todas as novas colunas de detalhes coletadas para o MariaDB
   for c in tqdm(cursor):
     df_players = get_players(c)
     insert_players(df_players, con_maria)

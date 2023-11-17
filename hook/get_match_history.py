@@ -26,6 +26,7 @@ def save_matches(data, db_collection):
     db_collection.insert_one(d)
   return True
 
+# Coleta a partida na API e salva ela no banco de dados
 def get_and_save(min_match_id=None, max_match_id=None, db_collection=None):
   data_raw = get_matches_batch(min_match_id=min_match_id)
   data = [i for i in data_raw if "match_id" in i]
@@ -47,7 +48,7 @@ def get_and_save(min_match_id=None, max_match_id=None, db_collection=None):
   time.sleep(0.5)
   return True, data
 
-
+# Coleta as partidas antigas a partir da partida mais antiga ja coletada no banco
 def get_oldest_matches(db_collection):
   min_match_id = db_collection.find_one(sort=[("match_id", 1)])["match_id"]
   while True:
@@ -56,6 +57,7 @@ def get_oldest_matches(db_collection):
       break
     min_match_id = min(i["match_id"] for i in data)
 
+# Coleta as novas partidas adicionadas a API e que ainda não estão contidas no banco
 def get_newest_matches(db_collection):
   try:
     max_match_id = db_collection.find_one(sort=[("match_id", -1)])["match_id"]
@@ -78,6 +80,7 @@ def get_newest_matches(db_collection):
     min_match_id = min(i["match_id"] for i in data)
 
 def main():
+  # Definindo as funções da main
   parser = argparse.ArgumentParser()
   parser.add_argument("--how", choices=["oldest", "newest", "get_matches"])
   args = parser.parse_args()
@@ -85,12 +88,14 @@ def main():
   #Carrega o dotenv
   dotenv.load_dotenv(dotenv.find_dotenv())
 
+  # Carregando o acesso do banco
   MONGODB_IP = os.getenv('MONGODB_IP')
   MONGODB_PORT = os.getenv('MONGODB_PORT')
 
   mongodb_client = MongoClient(MONGODB_IP, MONGODB_PORT)
   mongodb_database = mongodb_client['dota_raw']
 
+  # Funções que podem ser executadas
   if args.how == "oldest":
     get_oldest_matches(mongodb_database["pro_match_history"])
   elif args.how == "get_matches":
